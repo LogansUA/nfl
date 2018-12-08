@@ -1,0 +1,9 @@
+package: nfl_app
+import:
+- package: github.com/jinzhu/gorm
+  version: ^1.9.2
+- package: github.com/jinzhu/inflection
+- package: github.com/gorilla/mux
+  version: ^1.6.2
+- package: github.com/joho/godotenv
+  version: ^1.3.0
