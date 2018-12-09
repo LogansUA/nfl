@@ -7,9 +7,7 @@ import (
 )
 
 type Pagination struct {
-	page   int
-	limit  int
-	offset int
+	Page, Limit, Offset int
 }
 
 func (p *Pagination) Create(page, limit int) {
@@ -18,9 +16,9 @@ func (p *Pagination) Create(page, limit int) {
 		l = 1
 	}
 
-	p.limit = l
-	p.page = page
-	p.offset = (page-1)*l + 1
+	p.Limit = l
+	p.Page = page
+	p.Offset = (page-1)*l + 1
 
 	return
 }

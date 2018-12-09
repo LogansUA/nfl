@@ -49,8 +49,8 @@ func GetPlayers(w http.ResponseWriter, r *http.Request) {
 	paging.ParseParams(query)
 
 	db.
-		//Offset(paging.offset).
-		//Limit(paging.limit).
+		Offset(paging.Offset).
+		Limit(paging.Limit).
 		Find(&players)
 
 	jsonResponse(w, players)
