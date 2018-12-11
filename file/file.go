@@ -5,7 +5,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/GoogleCloudPlatform/golang-samples/getting-started/bookshelf"
 	"github.com/logansua/nfl_app/utils"
 	"io"
 	"mime/multipart"
@@ -63,7 +62,7 @@ func UploadFileToBucket(file multipart.File, fileHeader *multipart.FileHeader) (
 
 	const publicURL = "https://storage.googleapis.com/%s/%s"
 
-	return fmt.Sprintf(publicURL, bookshelf.StorageBucketName, name), nil
+	return fmt.Sprintf(publicURL, StorageBucketName, name), nil
 }
 
 func configureStorage(bucketID string) (*storage.BucketHandle, error) {
