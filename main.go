@@ -3,12 +3,11 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/asaskevich/govalidator"
 	"github.com/gorilla/mux"
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/postgres"
 	"github.com/joho/godotenv"
-	"github.com/logansua/nfl_app/file"
+	fileService "github.com/logansua/nfl_app/file"
 	"github.com/logansua/nfl_app/pagination"
 	"github.com/logansua/nfl_app/utils"
 	"log"
@@ -27,8 +26,13 @@ type Model struct {
 type Player struct {
 	Model
 
-	Name string `valid:"email" json:"name"`
+	Name   string `json:"name"`
+	Avatar string `json:"avatar"`
 }
+
+const (
+	maxUploadSize = 2 * 1024 * 1024 // 2 mb
+)
 
 var (
 	db  *gorm.DB
@@ -38,11 +42,6 @@ var (
 func CreatePlayer(w http.ResponseWriter, r *http.Request) {
 	var player Player
 	json.NewDecoder(r.Body).Decode(&player)
-
-	valid, errors := govalidator.ValidateStruct(&player)
-	if !valid {
-		panic(errors)
-	}
 
 	db.Create(&player)
 
@@ -83,10 +82,51 @@ func DeletePlayer(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(204)
 }
 
+func UploadUserAvatar(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, maxUploadSize)
+
+	if err := r.ParseMultipartForm(maxUploadSize); err != nil {
+		utils.RenderError(w, "FILE_TOO_BIG", http.StatusBadRequest)
+		return
+	}
+
+	file, fileHeader, err := r.FormFile("image")
+	if err == http.ErrMissingFile {
+		return
+	}
+	if err != nil {
+		utils.RenderError(w, err.Error(), http.StatusInternalServerError)
+
+		return
+	}
+
+	url, err := fileService.UploadFileToBucket(file, fileHeader)
+
+	params := mux.Vars(r)
+	var player Player
+	db.First(&player, params["id"])
+
+	player.Avatar = url
+
+	db.Save(&player)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	utils.JsonResponse(w, player)
+}
+
 func main() {
 	err := godotenv.Load()
 	if err != nil {
 		log.Fatal("Error loading .env file")
+	}
+
+	err = fileService.ConfigureBucketStorage()
+
+	if err != nil {
+		log.Fatal(err)
 	}
 
 	router := mux.NewRouter()
@@ -110,7 +150,7 @@ func main() {
 	router.HandleFunc("/players", GetPlayers).Methods(http.MethodGet)
 	router.HandleFunc("/players/{id}", GetPlayer).Methods(http.MethodGet)
 	router.HandleFunc("/players/{id}", DeletePlayer).Methods(http.MethodDelete)
-	router.HandleFunc("/players/avatar", file.UploadFileHandler()).Methods(http.MethodPost)
+	router.HandleFunc("/players/{id}/avatar", UploadUserAvatar).Methods(http.MethodPost)
 
 	log.Print(fmt.Sprintf("Server started on %s:%s", os.Getenv("APP_HOST"), os.Getenv("APP_PORT")))
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%s", os.Getenv("APP_PORT")), router))

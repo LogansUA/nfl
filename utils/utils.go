@@ -1,9 +1,8 @@
 package utils
 
 import (
-	"crypto/rand"
 	"encoding/json"
-	"fmt"
+	"github.com/satori/go.uuid"
 	"log"
 	"net/http"
 )
@@ -22,12 +21,8 @@ func RenderError(w http.ResponseWriter, message string, statusCode int) {
 	log.Fatal(err)
 }
 
-func RandToken(len int) string {
-	b := make([]byte, len)
-
-	rand.Read(b)
-
-	return fmt.Sprintf("%x", b)
+func RandToken() string {
+	return uuid.Must(uuid.NewV4()).String()
 }
 
 func JsonResponse(w http.ResponseWriter, model interface{}) {
