@@ -10,6 +10,16 @@ type Pagination struct {
 	Page, Limit, Offset int
 }
 
+func New(params url.Values) Pagination {
+	page, limit := parseParams(params)
+
+	pagination := Pagination{}
+
+	pagination.Create(page, limit)
+
+	return pagination
+}
+
 func (p *Pagination) Create(page, limit int) {
 	l := limit
 	if l <= 0 {
@@ -23,15 +33,10 @@ func (p *Pagination) Create(page, limit int) {
 	return
 }
 
-func (p *Pagination) ParseParams(params url.Values) {
-	var (
-		page  int
-		limit int
-	)
+func parseParams(params url.Values) (page, limit int) {
+	envLimit, _ := strconv.Atoi(os.Getenv("PAGINATION_LIMIT"))
 
-	l, _ := strconv.Atoi(os.Getenv("PAGINATION_LIMIT"))
-
-	limit = parseLimit(l)
+	limit = parseLimit(envLimit)
 
 	if pages, ok := params["page"]; ok {
 		page, _ = strconv.Atoi(pages[0])
@@ -45,7 +50,7 @@ func (p *Pagination) ParseParams(params url.Values) {
 		limit = parseLimit(perPage)
 	}
 
-	p.Create(page, limit)
+	return
 }
 
 func parseLimit(limit int) int {

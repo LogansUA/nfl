@@ -53,9 +53,7 @@ func GetPlayers(w http.ResponseWriter, r *http.Request) {
 
 	query := r.URL.Query()
 
-	var paging pagination.Pagination
-
-	paging.ParseParams(query)
+	paging := pagination.New(query)
 
 	db.
 		Offset(paging.Offset).
