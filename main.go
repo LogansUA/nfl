@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/asaskevich/govalidator"
 	"github.com/gorilla/mux"
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/postgres"
@@ -24,7 +25,7 @@ type Model struct {
 type Player struct {
 	Model
 
-	Name string `json:"name"`
+	Name string `valid:"email" json:"name"`
 }
 
 var db *gorm.DB
@@ -33,6 +34,11 @@ var err error
 func CreatePlayer(w http.ResponseWriter, r *http.Request) {
 	var player Player
 	json.NewDecoder(r.Body).Decode(&player)
+
+	valid, errors := govalidator.ValidateStruct(&player)
+	if !valid {
+		panic(errors)
+	}
 
 	db.Create(&player)
 
@@ -102,7 +108,7 @@ func main() {
 	))
 
 	if err != nil {
-		panic("failed to connect database")
+		log.Fatal("failed to connect database")
 	}
 
 	defer db.Close()
