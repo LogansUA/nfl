@@ -8,7 +8,9 @@ import (
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/postgres"
 	"github.com/joho/godotenv"
+	"github.com/logansua/nfl_app/file"
 	"github.com/logansua/nfl_app/pagination"
+	"github.com/logansua/nfl_app/utils"
 	"log"
 	"net/http"
 	"os"
@@ -28,8 +30,10 @@ type Player struct {
 	Name string `valid:"email" json:"name"`
 }
 
-var db *gorm.DB
-var err error
+var (
+	db  *gorm.DB
+	err error
+)
 
 func CreatePlayer(w http.ResponseWriter, r *http.Request) {
 	var player Player
@@ -42,7 +46,7 @@ func CreatePlayer(w http.ResponseWriter, r *http.Request) {
 
 	db.Create(&player)
 
-	jsonResponse(w, player)
+	utils.JsonResponse(w, player)
 }
 
 func GetPlayers(w http.ResponseWriter, r *http.Request) {
@@ -59,7 +63,7 @@ func GetPlayers(w http.ResponseWriter, r *http.Request) {
 		Limit(paging.Limit).
 		Find(&players)
 
-	jsonResponse(w, players)
+	utils.JsonResponse(w, players)
 }
 
 func GetPlayer(w http.ResponseWriter, r *http.Request) {
@@ -67,7 +71,7 @@ func GetPlayer(w http.ResponseWriter, r *http.Request) {
 	var player Player
 	db.First(&player, params["id"])
 
-	jsonResponse(w, player)
+	utils.JsonResponse(w, player)
 }
 
 func DeletePlayer(w http.ResponseWriter, r *http.Request) {
@@ -77,17 +81,6 @@ func DeletePlayer(w http.ResponseWriter, r *http.Request) {
 	db.Delete(&player)
 
 	w.WriteHeader(204)
-}
-
-func jsonResponse(w http.ResponseWriter, model interface{}) {
-	js, err := json.Marshal(model)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.Write(js)
 }
 
 func main() {
@@ -113,10 +106,12 @@ func main() {
 
 	defer db.Close()
 
-	router.HandleFunc("/players", CreatePlayer).Methods("POST")
-	router.HandleFunc("/players", GetPlayers).Methods("GET")
-	router.HandleFunc("/players/{id}", GetPlayer).Methods("GET")
-	router.HandleFunc("/players/{id}", DeletePlayer).Methods("DELETE")
+	router.HandleFunc("/players", CreatePlayer).Methods(http.MethodPost)
+	router.HandleFunc("/players", GetPlayers).Methods(http.MethodGet)
+	router.HandleFunc("/players/{id}", GetPlayer).Methods(http.MethodGet)
+	router.HandleFunc("/players/{id}", DeletePlayer).Methods(http.MethodDelete)
+	router.HandleFunc("/players/avatar", file.UploadFileHandler()).Methods(http.MethodPost)
 
-	log.Fatal(http.ListenAndServe(":8080", router))
+	log.Print(fmt.Sprintf("Server started on %s:%s", os.Getenv("APP_HOST"), os.Getenv("APP_PORT")))
+	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%s", os.Getenv("APP_PORT")), router))
 }
