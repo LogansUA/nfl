@@ -49,7 +49,7 @@ func New() Service {
 
 func (s *service) UploadPlayerAvatar(id uint, file multipart.File, fileHeader *multipart.FileHeader) (string, error) {
 	name := fmt.Sprintf("%s%s", utils.RandToken(), path.Ext(fileHeader.Filename))
-	filePath := fmt.Sprintf("%s/%d/%s", "players", id, name)
+	filePath := fmt.Sprintf("%s/%d/%s", "players", id, "avatars", name)
 
 	_, err := uploadFileToBucket(file, fileHeader, filePath)
 
