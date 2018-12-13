@@ -15,12 +15,12 @@ func New(params url.Values) Pagination {
 
 	pagination := Pagination{}
 
-	pagination.Create(page, limit)
+	pagination.create(page, limit)
 
 	return pagination
 }
 
-func (p *Pagination) Create(page, limit int) {
+func (p *Pagination) create(page, limit int) {
 	l := limit
 	if l <= 0 {
 		l = 1

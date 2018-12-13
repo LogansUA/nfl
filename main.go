@@ -1,135 +1,36 @@
 package main
 
 import (
-	"encoding/json"
+	"flag"
 	"fmt"
-	"github.com/gorilla/mux"
-	"github.com/jinzhu/gorm"
-	_ "github.com/jinzhu/gorm/dialects/postgres"
+	"github.com/go-kit/kit/log"
 	"github.com/joho/godotenv"
-	fileService "github.com/logansua/nfl_app/file"
-	"github.com/logansua/nfl_app/pagination"
-	"github.com/logansua/nfl_app/utils"
-	"log"
+	"github.com/logansua/nfl_app/bucket"
+	"github.com/logansua/nfl_app/db"
+	"github.com/logansua/nfl_app/player"
 	"net/http"
 	"os"
-	"time"
+	"os/signal"
+	"syscall"
 )
-
-type Model struct {
-	ID        uint       `gorm:"primary_key" json:"id"`
-	CreatedAt time.Time  `json:"created_at"`
-	UpdatedAt time.Time  `json:"updated_at"`
-	DeletedAt *time.Time `sql:"index" json:"deleted_at"`
-}
-
-type Player struct {
-	Model
-
-	Name   string `json:"name"`
-	Avatar string `json:"avatar"`
-}
-
-const (
-	maxUploadSize = 2 * 1024 * 1024 // 2 mb
-)
-
-var (
-	db  *gorm.DB
-	err error
-)
-
-func CreatePlayer(w http.ResponseWriter, r *http.Request) {
-	var player Player
-	json.NewDecoder(r.Body).Decode(&player)
-
-	db.Create(&player)
-
-	utils.JsonResponse(w, player)
-}
-
-func GetPlayers(w http.ResponseWriter, r *http.Request) {
-	var players []Player
-
-	query := r.URL.Query()
-
-	paging := pagination.New(query)
-
-	db.
-		Offset(paging.Offset).
-		Limit(paging.Limit).
-		Find(&players)
-
-	utils.JsonResponse(w, players)
-}
-
-func GetPlayer(w http.ResponseWriter, r *http.Request) {
-	params := mux.Vars(r)
-	var player Player
-	db.First(&player, params["id"])
-
-	utils.JsonResponse(w, player)
-}
-
-func DeletePlayer(w http.ResponseWriter, r *http.Request) {
-	params := mux.Vars(r)
-	var player Player
-	db.First(&player, params["id"])
-	db.Delete(&player)
-
-	w.WriteHeader(204)
-}
-
-func UploadUserAvatar(w http.ResponseWriter, r *http.Request) {
-	r.Body = http.MaxBytesReader(w, r.Body, maxUploadSize)
-
-	if err := r.ParseMultipartForm(maxUploadSize); err != nil {
-		utils.RenderError(w, "FILE_TOO_BIG", http.StatusBadRequest)
-		return
-	}
-
-	file, fileHeader, err := r.FormFile("image")
-	if err == http.ErrMissingFile {
-		return
-	}
-	if err != nil {
-		utils.RenderError(w, err.Error(), http.StatusInternalServerError)
-
-		return
-	}
-
-	url, err := fileService.UploadFileToBucket(file, fileHeader)
-
-	params := mux.Vars(r)
-	var player Player
-	db.First(&player, params["id"])
-
-	player.Avatar = url
-
-	db.Save(&player)
-
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	utils.JsonResponse(w, player)
-}
 
 func main() {
+	flag.Parse()
+
+	var logger log.Logger
+	{
+		logger = log.NewLogfmtLogger(os.Stderr)
+		logger = log.With(logger, "ts", log.DefaultTimestampUTC)
+		logger = log.With(logger, "caller", log.DefaultCaller)
+	}
+
 	err := godotenv.Load()
-	if err != nil {
-		log.Fatal("Error loading .env file")
-	}
-
-	err = fileService.ConfigureBucketStorage()
 
 	if err != nil {
-		log.Fatal(err)
+		panic("Error loading .env file")
 	}
 
-	router := mux.NewRouter()
-
-	db, err = gorm.Open("postgres", fmt.Sprintf(
+	dbService := db.New("postgres", fmt.Sprintf(
 		"host=%s port=%s user=%s dbname=%s password=%s sslmode=disable",
 		os.Getenv("DATABASE_HOST"),
 		os.Getenv("DATABASE_PORT"),
@@ -137,19 +38,31 @@ func main() {
 		os.Getenv("DATABASE_NAME"),
 		os.Getenv("DATABASE_PASSWORD"),
 	))
+	bucketService := bucket.New()
+	playerService := player.New(dbService, bucketService)
 
-	if err != nil {
-		log.Fatal("failed to connect database")
+	var handler http.Handler
+	{
+		handler = player.MakeHTTPHandler(playerService, log.With(logger, "component", "HTTP"))
 	}
 
-	defer db.Close()
+	errs := make(chan error)
 
-	router.HandleFunc("/players", CreatePlayer).Methods(http.MethodPost)
-	router.HandleFunc("/players", GetPlayers).Methods(http.MethodGet)
-	router.HandleFunc("/players/{id}", GetPlayer).Methods(http.MethodGet)
-	router.HandleFunc("/players/{id}", DeletePlayer).Methods(http.MethodDelete)
-	router.HandleFunc("/players/{id}/avatar", UploadUserAvatar).Methods(http.MethodPost)
+	go func() {
+		c := make(chan os.Signal)
 
-	log.Print(fmt.Sprintf("Server started on %s:%s", os.Getenv("APP_HOST"), os.Getenv("APP_PORT")))
-	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%s", os.Getenv("APP_PORT")), router))
+		signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
+
+		errs <- fmt.Errorf("%playerService", <-c)
+	}()
+
+	httpAddr := flag.String("http.addr", fmt.Sprintf(":%s", os.Getenv("APP_PORT")), "HTTP listen address")
+
+	go func() {
+		logger.Log("transport", "HTTP", "addr", *httpAddr)
+
+		errs <- http.ListenAndServe(*httpAddr, handler)
+	}()
+
+	logger.Log("exit", <-errs)
 }
