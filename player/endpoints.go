@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/go-kit/kit/endpoint"
 	"github.com/logansua/nfl_app/pagination"
+	"github.com/logansua/nfl_app/utils"
 	"mime/multipart"
 )
 
@@ -107,13 +108,13 @@ func MakeCreatePlayerEndpoint(service Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(createPlayerRequest)
 
-		player, err := service.CreatePlayer(ctx, req.Player)
+		p, err := service.CreatePlayer(ctx, req.Player)
 
 		if err != nil {
 			return nil, err
 		}
 
-		return dataResponse{Data: *player}, nil
+		return dataResponse{Data: NewDTO(*p)}, nil
 	}
 }
 func MakeGetPlayersEndpoint(service Service) endpoint.Endpoint {
@@ -126,7 +127,11 @@ func MakeGetPlayersEndpoint(service Service) endpoint.Endpoint {
 			return nil, err
 		}
 
-		return dataResponse{Data: players}, nil
+		dto := utils.Map(players, func(val interface{}) interface{} {
+			return NewDTO(val.(Player))
+		})
+
+		return dataResponse{Data: dto}, nil
 	}
 }
 func MakeGetPlayerEndpoint(service Service) endpoint.Endpoint {
@@ -139,7 +144,7 @@ func MakeGetPlayerEndpoint(service Service) endpoint.Endpoint {
 			return nil, err
 		}
 
-		return dataResponse{Data: *player}, nil
+		return dataResponse{Data: NewDTO(*player)}, nil
 	}
 }
 func MakeDeletePlayerEndpoint(service Service) endpoint.Endpoint {
@@ -165,7 +170,7 @@ func MakeUploadPlayerAvatarEndpoint(service Service) endpoint.Endpoint {
 			return nil, err
 		}
 
-		return player, nil
+		return dataResponse{Data: NewDTO(*player)}, nil
 	}
 }
 

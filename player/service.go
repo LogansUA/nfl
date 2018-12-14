@@ -10,18 +10,33 @@ import (
 	"time"
 )
 
-type Model struct {
-	ID        uint       `gorm:"primary_key" json:"id"`
-	CreatedAt time.Time  `json:"created_at"`
-	UpdatedAt time.Time  `json:"updated_at"`
-	DeletedAt *time.Time `sql:"index" json:"deleted_at"`
+type Player struct {
+	gorm.Model
+
+	Name   string
+	Avatar string
 }
 
-type Player struct {
-	Model
+type PlayerDTO struct {
+	ID uint `json:"id"`
 
 	Name   string `json:"name"`
 	Avatar string `json:"avatar"`
+
+	CreatedAt time.Time  `json:"created_at"`
+	UpdatedAt time.Time  `json:"updated_at"`
+	DeletedAt *time.Time `json:"deleted_at"`
+}
+
+func NewDTO(data Player) PlayerDTO {
+	return PlayerDTO{
+		ID:        data.ID,
+		Name:      data.Name,
+		Avatar:    data.Avatar,
+		CreatedAt: data.CreatedAt,
+		UpdatedAt: data.UpdatedAt,
+		DeletedAt: data.DeletedAt,
+	}
 }
 
 // Service is a simple CRUD interface for user profiles.

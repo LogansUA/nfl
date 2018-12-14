@@ -4,13 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/go-kit/kit/log"
+	httptransport "github.com/go-kit/kit/transport/http"
 	"github.com/gorilla/mux"
 	"github.com/logansua/nfl_app/pagination"
 	"net/http"
 	"strconv"
-
-	"github.com/go-kit/kit/log"
-	httptransport "github.com/go-kit/kit/transport/http"
 )
 
 var (
@@ -129,12 +128,12 @@ func decodeDeletePlayerRequest(_ context.Context, r *http.Request) (request inte
 
 	return req, nil
 }
-
-const (
-	maxUploadSize = 2 * 1024 * 1024 // 2 mb
-)
-
 func decodeUploadPlayerAvatarRequest(ctx context.Context, r *http.Request) (request interface{}, err error) {
+
+	const (
+		maxUploadSize = 2 * 1024 * 1024 // 2 mb
+	)
+
 	//r.Body = http.MaxBytesReader(w, r.Body, maxUploadSize)
 
 	if err := r.ParseMultipartForm(maxUploadSize); err != nil {
