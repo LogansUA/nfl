@@ -30,14 +30,15 @@ func main() {
 		panic("Error loading .env file")
 	}
 
-	dbService := db.New("postgres", fmt.Sprintf(
-		"host=%s port=%s user=%s dbname=%s password=%s sslmode=disable",
+	connectionString := fmt.Sprintf(
+		"host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
 		os.Getenv("DATABASE_HOST"),
 		os.Getenv("DATABASE_PORT"),
 		os.Getenv("DATABASE_USER"),
-		os.Getenv("DATABASE_NAME"),
 		os.Getenv("DATABASE_PASSWORD"),
-	))
+		os.Getenv("DATABASE_NAME"),
+	)
+	dbService := db.New("postgres", connectionString)
 	bucketService := bucket.New()
 	playerService := player.New(dbService, bucketService)
 
