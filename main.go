@@ -30,16 +30,18 @@ func main() {
 		panic("Error loading .env file")
 	}
 
-	connectionString := fmt.Sprintf(
-		"host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-		os.Getenv("DATABASE_HOST"),
-		os.Getenv("DATABASE_PORT"),
-		os.Getenv("DATABASE_USER"),
-		os.Getenv("DATABASE_PASSWORD"),
-		os.Getenv("DATABASE_NAME"),
-	)
-	dbService := db.New("postgres", connectionString)
-	bucketService := bucket.New()
+	dbService, err := db.New()
+
+	if err != nil {
+		panic(err)
+	}
+
+	bucketService, err := bucket.New()
+
+	if err != nil {
+		panic(err)
+	}
+
 	playerService := player.New(dbService, bucketService)
 
 	var handler http.Handler
