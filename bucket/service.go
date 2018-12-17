@@ -17,7 +17,7 @@ type UploadFileToBucketResponse struct {
 }
 
 type Service interface {
-	UploadPlayerAvatar(id uint, file multipart.File, fileHeader *multipart.FileHeader) (string, error)
+	UploadPlayerAvatar(ctx context.Context, id uint, file multipart.File, fileHeader *multipart.FileHeader) (string, error)
 }
 
 type service struct {
@@ -29,43 +29,42 @@ var (
 	StorageBucket     *storage.BucketHandle
 )
 
-func New() Service {
+func New() (Service, error) {
 	var err error
 
 	StorageBucketName = os.Getenv("GOOGLE_CLOUD_BUCKET_NAME")
 
 	if StorageBucketName == "" {
-		panic(errors.New(fmt.Sprintf("Environement variable \"%s\" is not set!", "GOOGLE_CLOUD_BUCKET_NAME")))
+		return nil, errors.New("GOOGLE_CLOUD_BUCKET_NAME is not set")
 	}
 
 	StorageBucket, err = configureStorage(StorageBucketName)
 
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
-	return &service{Bucket: StorageBucket}
+	return &service{Bucket: StorageBucket}, nil
 }
 
-func (s *service) UploadPlayerAvatar(id uint, file multipart.File, fileHeader *multipart.FileHeader) (string, error) {
+func (s *service) UploadPlayerAvatar(ctx context.Context, id uint, file multipart.File, fileHeader *multipart.FileHeader) (string, error) {
 	name := fmt.Sprintf("%s%s", utils.RandToken(), path.Ext(fileHeader.Filename))
 	filePath := fmt.Sprintf("%s/%d/%s/%s", "players", id, "avatars", name)
 
-	_, err := uploadFileToBucket(file, fileHeader, filePath)
+	_, err := uploadFileToBucket(ctx, file, fileHeader, filePath)
 
 	if err != nil {
-		return "", nil
+		return "", err
 	}
 
 	return name, err
 }
 
-func uploadFileToBucket(file multipart.File, fileHeader *multipart.FileHeader, fullPath string) (url string, err error) {
+func uploadFileToBucket(ctx context.Context, file multipart.File, fileHeader *multipart.FileHeader, fullPath string) (url string, err error) {
 	if StorageBucket == nil {
-		return "", errors.New("storage bucket is missing - check config.go")
+		return "", errors.New("storage bucket is missing")
 	}
 
-	ctx := context.Background()
 	writer := StorageBucket.Object(fullPath).NewWriter(ctx)
 
 	// Warning: storage.AllUsers gives public read access to anyone.

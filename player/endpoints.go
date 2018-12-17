@@ -164,7 +164,7 @@ func MakeUploadPlayerAvatarEndpoint(service Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(uploadPlayerAvatarRequest)
 
-		player, err := service.UploadPlayerAvatar(ctx, req.id, req.file, req.fileHeader)
+		player, err := service.UploadPlayerAvatar(ctx, req.id, req.file, &req.fileHeader)
 
 		if err != nil {
 			return nil, err

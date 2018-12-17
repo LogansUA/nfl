@@ -128,8 +128,7 @@ func decodeDeletePlayerRequest(_ context.Context, r *http.Request) (request inte
 
 	return req, nil
 }
-func decodeUploadPlayerAvatarRequest(ctx context.Context, r *http.Request) (request interface{}, err error) {
-
+func decodeUploadPlayerAvatarRequest(_ context.Context, r *http.Request) (request interface{}, err error) {
 	const (
 		maxUploadSize = 2 * 1024 * 1024 // 2 mb
 	)

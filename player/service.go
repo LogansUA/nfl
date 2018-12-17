@@ -41,12 +41,11 @@ func NewDTO(data Player) PlayerDTO {
 
 // Service is a simple CRUD interface for user profiles.
 type Service interface {
-	PostProfile(ctx context.Context, p Player) (player *Player, err error)
 	CreatePlayer(ctx context.Context, p Player) (player *Player, err error)
 	GetPlayers(ctx context.Context, paging pagination.Pagination) ([]Player, error)
 	GetPlayer(ctx context.Context, id int) (player *Player, err error)
 	DeletePlayer(ctx context.Context, id int) error
-	UploadPlayerAvatar(ctx context.Context, id int, file multipart.File, fileHeader multipart.FileHeader) (player *Player, err error)
+	UploadPlayerAvatar(ctx context.Context, id int, file multipart.File, fileHeader *multipart.FileHeader) (player *Player, err error)
 }
 
 type service struct {
@@ -63,10 +62,6 @@ var (
 	ErrAlreadyExists   = errors.New("already exists")
 	ErrNotFound        = errors.New("not found")
 )
-
-func (s *service) PostProfile(ctx context.Context, p Player) (player *Player, err error) {
-	return &Player{Name: "Hello"}, nil
-}
 
 func (s *service) CreatePlayer(ctx context.Context, p Player) (player *Player, err error) {
 	s.DBService.Create(&p)
@@ -108,20 +103,20 @@ func (s *service) DeletePlayer(ctx context.Context, id int) error {
 	return nil
 }
 
-func (s *service) UploadPlayerAvatar(ctx context.Context, id int, file multipart.File, fileHeader multipart.FileHeader) (player *Player, err error) {
+func (s *service) UploadPlayerAvatar(ctx context.Context, id int, file multipart.File, fileHeader *multipart.FileHeader) (player *Player, err error) {
 	var p Player
 
 	if result := s.DBService.First(&p, id); result.Error != nil {
 		return nil, errors.New("player not found")
 	}
 
-	url, err := s.BucketService.UploadPlayerAvatar(p.ID, file, &fileHeader)
+	name, err := s.BucketService.UploadPlayerAvatar(ctx, p.ID, file, fileHeader)
 
 	if err != nil {
 		return nil, err
 	}
 
-	p.Avatar = url
+	p.Avatar = name
 
 	if result := s.DBService.Save(&p); result.Error != nil {
 		return nil, result.Error
