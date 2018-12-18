@@ -7,23 +7,25 @@ import (
 	"os"
 )
 
-type Service interface {
+type DB struct {
+	Repository       Repository
+	PlayerRepository PlayerRepository
+	DB               *gorm.DB
 }
 
-//type service struct {
-//	DB gorm.DB
-//}
-
-func New() (*gorm.DB, error) {
+// Initialize connection to database
+func New() (*DB, error) {
 	db, err := gorm.Open("postgres", getConnectionString())
 
 	if err != nil {
 		return nil, err
 	}
 
-	//return &service{DB: *db}, nil
-
-	return db, nil
+	return &DB{
+		Repository:       &BaseRepository{DB: db},
+		PlayerRepository: &PlayerTable{DB: db},
+		DB:               db,
+	}, nil
 }
 
 func getConnectionString() string {
