@@ -3,58 +3,34 @@ package player
 import (
 	"context"
 	"errors"
-	"github.com/jinzhu/gorm"
 	"github.com/logansua/nfl_app/bucket"
+	"github.com/logansua/nfl_app/db"
+	"github.com/logansua/nfl_app/models"
 	"github.com/logansua/nfl_app/pagination"
 	"mime/multipart"
-	"time"
 )
 
-type Player struct {
-	gorm.Model
-
-	Name   string
-	Avatar string
-}
-
-type PlayerDTO struct {
-	ID uint `json:"id"`
-
-	Name   string `json:"name"`
-	Avatar string `json:"avatar"`
-
-	CreatedAt time.Time  `json:"created_at"`
-	UpdatedAt time.Time  `json:"updated_at"`
-	DeletedAt *time.Time `json:"deleted_at"`
-}
-
-func NewDTO(data Player) PlayerDTO {
-	return PlayerDTO{
-		ID:        data.ID,
-		Name:      data.Name,
-		Avatar:    data.Avatar,
-		CreatedAt: data.CreatedAt,
-		UpdatedAt: data.UpdatedAt,
-		DeletedAt: data.DeletedAt,
-	}
-}
-
-// Service is a simple CRUD interface for user profiles.
+// Service is a simple CRUD interface for players.
 type Service interface {
-	CreatePlayer(ctx context.Context, p Player) (player *Player, err error)
-	GetPlayers(ctx context.Context, paging pagination.Pagination) ([]Player, error)
-	GetPlayer(ctx context.Context, id int) (player *Player, err error)
-	DeletePlayer(ctx context.Context, id int) error
-	UploadPlayerAvatar(ctx context.Context, id int, file multipart.File, fileHeader *multipart.FileHeader) (player *Player, err error)
+	// Create player
+	CreatePlayer(ctx context.Context, p models.Player) (*models.Player, error)
+	// Get list of players
+	GetPlayers(ctx context.Context, paging pagination.Pagination, players *[]models.Player) error
+	// Get single player by ID
+	GetPlayer(ctx context.Context, id int, player *models.Player) error
+	// Delete player by ID
+	DeletePlayer(ctx context.Context, id int, player *models.Player) error
+	// Upload player avatar by ID
+	UploadPlayerAvatar(ctx context.Context, id int, file multipart.File, fileHeader *multipart.FileHeader, p *models.Player) error
 }
 
 type service struct {
-	DBService     *gorm.DB
+	DB            *db.DB
 	BucketService bucket.Service
 }
 
-func New(dbService *gorm.DB, bucketService bucket.Service) Service {
-	return &service{DBService: dbService, BucketService: bucketService}
+func New(dbService *db.DB, bucketService bucket.Service) Service {
+	return &service{DB: dbService, BucketService: bucketService}
 }
 
 var (
@@ -63,64 +39,64 @@ var (
 	ErrNotFound        = errors.New("not found")
 )
 
-func (s *service) CreatePlayer(ctx context.Context, p Player) (player *Player, err error) {
-	s.DBService.Create(&p)
-
-	return &p, nil
-}
-
-func (s *service) GetPlayers(ctx context.Context, paging pagination.Pagination) ([]Player, error) {
-	var players []Player
-
-	s.DBService.
-		Offset(paging.Offset).
-		Limit(paging.Limit).
-		Order("id ASC").
-		Find(&players)
-
-	return players, nil
-}
-
-func (s *service) GetPlayer(ctx context.Context, id int) (player *Player, err error) {
-	var p Player
-
-	if result := s.DBService.First(&p, id); result.RecordNotFound() {
-		return nil, errors.New("player not found")
-	}
-
-	return &p, nil
-}
-
-func (s *service) DeletePlayer(ctx context.Context, id int) error {
-	var player Player
-
-	if s.DBService.First(&player, id).RecordNotFound() {
-		return errors.New("player not found")
-	}
-
-	s.DBService.Delete(&player)
-
-	return nil
-}
-
-func (s *service) UploadPlayerAvatar(ctx context.Context, id int, file multipart.File, fileHeader *multipart.FileHeader) (player *Player, err error) {
-	var p Player
-
-	if result := s.DBService.First(&p, id); result.Error != nil {
-		return nil, errors.New("player not found")
-	}
-
-	name, err := s.BucketService.UploadPlayerAvatar(ctx, p.ID, file, fileHeader)
+func (s *service) CreatePlayer(ctx context.Context, p models.Player) (*models.Player, error) {
+	err := s.DB.Repository.Create(&p)
 
 	if err != nil {
 		return nil, err
 	}
 
-	p.Avatar = name
+	return &p, nil
+}
 
-	if result := s.DBService.Save(&p); result.Error != nil {
-		return nil, result.Error
+func (s *service) GetPlayers(ctx context.Context, paging pagination.Pagination, players *[]models.Player) error {
+	var p []models.Player
+
+	err := s.DB.
+		PlayerRepository.
+		FindAllAndPaginate(paging, &p)
+
+	*players = make([]models.Player, len(p))
+
+	for key, value := range p {
+		(*players)[key] = value
 	}
 
-	return &p, nil
+	return err
+}
+
+func (s *service) GetPlayer(ctx context.Context, id int, player *models.Player) error {
+	err := s.DB.Repository.FindById(&player, id)
+
+	return err
+}
+
+func (s *service) DeletePlayer(ctx context.Context, id int, player *models.Player) error {
+	err := s.DB.Repository.FindById(&player, id)
+
+	if err != nil {
+		return err
+	}
+
+	err = s.DB.Repository.Delete(&player, id)
+
+	return err
+}
+
+func (s *service) UploadPlayerAvatar(ctx context.Context, id int, file multipart.File, fileHeader *multipart.FileHeader, p *models.Player) error {
+	if err := s.DB.Repository.FindById(&p, id); err != nil {
+		return errors.New("player not found")
+	}
+
+	name, err := s.BucketService.UploadPlayerAvatar(ctx, p.ID, file, fileHeader)
+
+	if err != nil {
+		return err
+	}
+
+	p.Avatar = name
+
+	err = s.DB.Repository.Save(&p)
+
+	return err
 }

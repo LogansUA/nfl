@@ -3,25 +3,12 @@ package player
 import (
 	"context"
 	"github.com/go-kit/kit/endpoint"
+	"github.com/logansua/nfl_app/models"
 	"github.com/logansua/nfl_app/pagination"
 	"github.com/logansua/nfl_app/utils"
 	"mime/multipart"
 )
 
-// Endpoints collects all of the endpoints that compose a profile service. It's
-// meant to be used as a helper struct, to collect all of the endpoints into a
-// single parameter.
-//
-// In a server, it's useful for functions that need to operate on a per-endpoint
-// basis. For example, you might pass an Endpoints to a function that produces
-// an http.Handler, with each method (endpoint) wired up to a specific path. (It
-// is probably a mistake in design to invoke the Service methods on the
-// Endpoints struct in a server.)
-//
-// In a client, it's useful to collect individually constructed endpoints into a
-// single type that implements the Service interface. For example, you might
-// construct individual endpoints using transport/http.NewClient, combine them
-// into an Endpoints, and return it to the caller as a Service.
 type Endpoints struct {
 	CreatePlayerEndpoint           endpoint.Endpoint
 	GetPlayersEndpoint             endpoint.Endpoint
@@ -30,9 +17,6 @@ type Endpoints struct {
 	MakeUploadPlayerAvatarEndpoint endpoint.Endpoint
 }
 
-// MakeServerEndpoints returns an Endpoints struct where each endpoint invokes
-// the corresponding method on the provided service. Useful in a profilesvc
-// server.
 func MakeServerEndpoints(s Service) Endpoints {
 	return Endpoints{
 		CreatePlayerEndpoint:           MakeCreatePlayerEndpoint(s),
@@ -43,7 +27,7 @@ func MakeServerEndpoints(s Service) Endpoints {
 	}
 }
 
-func (e Endpoints) CreatePlayer(ctx context.Context, p Player) error {
+func (e Endpoints) CreatePlayer(ctx context.Context, p models.Player) error {
 	request := createPlayerRequest{Player: p}
 	response, err := e.CreatePlayerEndpoint(ctx, request)
 
@@ -114,21 +98,23 @@ func MakeCreatePlayerEndpoint(service Service) endpoint.Endpoint {
 			return nil, err
 		}
 
-		return dataResponse{Data: NewDTO(*p)}, nil
+		return dataResponse{Data: models.NewDTO(*p)}, nil
 	}
 }
 func MakeGetPlayersEndpoint(service Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(getPlayersRequest)
 
-		players, err := service.GetPlayers(ctx, req.Paging)
+		var players []models.Player
+
+		err = service.GetPlayers(ctx, req.Paging, &players)
 
 		if err != nil {
 			return nil, err
 		}
 
 		dto := utils.Map(players, func(val interface{}) interface{} {
-			return NewDTO(val.(Player))
+			return models.NewDTO(val.(models.Player))
 		})
 
 		return dataResponse{Data: dto}, nil
@@ -138,20 +124,24 @@ func MakeGetPlayerEndpoint(service Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(playerIdRequest)
 
-		player, err := service.GetPlayer(ctx, req.id)
+		var player models.Player
+
+		err = service.GetPlayer(ctx, req.id, &player)
 
 		if err != nil {
 			return nil, err
 		}
 
-		return dataResponse{Data: NewDTO(*player)}, nil
+		return dataResponse{Data: models.NewDTO(player)}, nil
 	}
 }
 func MakeDeletePlayerEndpoint(service Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(playerIdRequest)
 
-		err = service.DeletePlayer(ctx, req.id)
+		var player models.Player
+
+		err = service.DeletePlayer(ctx, req.id, &player)
 
 		if err != nil {
 			return nil, err
@@ -164,18 +154,19 @@ func MakeUploadPlayerAvatarEndpoint(service Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(uploadPlayerAvatarRequest)
 
-		player, err := service.UploadPlayerAvatar(ctx, req.id, req.file, &req.fileHeader)
+		var player models.Player
+		err = service.UploadPlayerAvatar(ctx, req.id, req.file, &req.fileHeader, &player)
 
 		if err != nil {
 			return nil, err
 		}
 
-		return dataResponse{Data: NewDTO(*player)}, nil
+		return dataResponse{Data: models.NewDTO(player)}, nil
 	}
 }
 
 type createPlayerRequest struct {
-	Player Player
+	Player models.Player
 }
 
 type getPlayersRequest struct {

@@ -12,12 +12,6 @@ import (
 	"strconv"
 )
 
-var (
-	// ErrBadRouting is returned when an expected path variable is missing.
-	// It always indicates programmer error.
-	ErrBadRouting = errors.New("inconsistent mapping between route and handler (programmer error)")
-)
-
 // MakeHTTPHandler mounts all of the service endpoints into an http.Handler.
 func MakeHTTPHandler(s Service, logger log.Logger) http.Handler {
 	router := mux.NewRouter()
