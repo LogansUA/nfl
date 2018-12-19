@@ -69,7 +69,23 @@ func MakeHTTPHandler(s Service, logger log.Logger) http.Handler {
 			options...,
 		))
 
+	makeSwaggerHandler(router)
+
 	return router
+}
+
+func makeSwaggerHandler(r *mux.Router) {
+	const docsPath = "/docs"
+
+	r.StrictSlash(false).Path(docsPath).Handler(http.RedirectHandler(docsPath+"/", http.StatusMovedPermanently))
+
+	r.StrictSlash(true).PathPrefix(docsPath + "/").Handler(
+		http.StripPrefix(docsPath+"/", http.FileServer(http.Dir("./swagger"))),
+	)
+
+	r.Path("/api-docs").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "./swagger.yaml")
+	})
 }
 
 func decodeCreatePlayerRequest(_ context.Context, r *http.Request) (request interface{}, err error) {

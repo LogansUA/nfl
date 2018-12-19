@@ -6,7 +6,7 @@ import (
 )
 
 func RandToken() string {
-	return uuid.Must(uuid.NewV4()).String()
+	return uuid.NewV4().String()
 }
 
 func Map(in interface{}, fn func(interface{}) interface{}) interface{} {
