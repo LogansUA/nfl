@@ -6,6 +6,7 @@ import (
 	"github.com/logansua/nfl_app/bucket"
 	"github.com/logansua/nfl_app/db"
 	"github.com/logansua/nfl_app/models"
+	"github.com/logansua/nfl_app/models/dto"
 	"github.com/logansua/nfl_app/pagination"
 	"mime/multipart"
 )
@@ -13,15 +14,15 @@ import (
 // Service is a simple CRUD interface for players.
 type Service interface {
 	// Create player
-	CreatePlayer(ctx context.Context, player *models.PlayerDTO) error
+	CreatePlayer(ctx context.Context, player *dto.PlayerDTO) error
 	// Get list of players
-	GetPlayers(ctx context.Context, paging pagination.Pagination, players *[]models.PlayerDTO) error
+	GetPlayers(ctx context.Context, paging pagination.Pagination, players *[]dto.PlayerDTO) error
 	// Get single player by ID
-	GetPlayer(ctx context.Context, id int, player *models.PlayerDTO) error
+	GetPlayer(ctx context.Context, id int, player *dto.PlayerDTO) error
 	// Delete player by ID
 	DeletePlayer(ctx context.Context, id int) error
 	// Upload player avatar by ID
-	UploadPlayerAvatar(ctx context.Context, id int, file multipart.File, fileHeader *multipart.FileHeader, p *models.PlayerDTO) error
+	UploadPlayerAvatar(ctx context.Context, id int, file multipart.File, fileHeader *multipart.FileHeader, player *dto.PlayerDTO) error
 }
 
 type service struct {
@@ -33,14 +34,8 @@ func New(dbService *db.DB, bucketService bucket.Service) Service {
 	return &service{DB: dbService, BucketService: bucketService}
 }
 
-var (
-	ErrInconsistentIDs = errors.New("inconsistent IDs")
-	ErrAlreadyExists   = errors.New("already exists")
-	ErrNotFound        = errors.New("not found")
-)
-
-func (s *service) CreatePlayer(ctx context.Context, player *models.PlayerDTO) error {
-	p := models.NewModel(player)
+func (s *service) CreatePlayer(ctx context.Context, player *dto.PlayerDTO) error {
+	p := models.NewPlayerModel(player)
 	err := s.DB.Repository.Create(&p)
 
 	(*player).ID = p.ID
@@ -50,28 +45,28 @@ func (s *service) CreatePlayer(ctx context.Context, player *models.PlayerDTO) er
 	return err
 }
 
-func (s *service) GetPlayers(ctx context.Context, paging pagination.Pagination, players *[]models.PlayerDTO) error {
+func (s *service) GetPlayers(ctx context.Context, paging pagination.Pagination, players *[]dto.PlayerDTO) error {
 	var p []models.Player
 
 	err := s.DB.
 		PlayerRepository.
 		FindAllAndPaginate(paging, &p)
 
-	*players = make([]models.PlayerDTO, len(p))
+	*players = make([]dto.PlayerDTO, len(p))
 
 	for key, value := range p {
-		(*players)[key] = models.NewDTO(value)
+		(*players)[key] = models.NewPlayerDTO(value)
 	}
 
 	return err
 }
 
-func (s *service) GetPlayer(ctx context.Context, id int, player *models.PlayerDTO) error {
+func (s *service) GetPlayer(ctx context.Context, id int, player *dto.PlayerDTO) error {
 	var p models.Player
 
 	err := s.DB.Repository.FindById(&p, id)
 
-	*player = models.NewDTO(p)
+	*player = models.NewPlayerDTO(p)
 
 	return err
 }
@@ -90,7 +85,7 @@ func (s *service) DeletePlayer(ctx context.Context, id int) error {
 	return err
 }
 
-func (s *service) UploadPlayerAvatar(ctx context.Context, id int, file multipart.File, fileHeader *multipart.FileHeader, player *models.PlayerDTO) error {
+func (s *service) UploadPlayerAvatar(ctx context.Context, id int, file multipart.File, fileHeader *multipart.FileHeader, player *dto.PlayerDTO) error {
 	var p models.Player
 
 	if err := s.DB.Repository.FindById(&p, id); err != nil {
@@ -107,7 +102,7 @@ func (s *service) UploadPlayerAvatar(ctx context.Context, id int, file multipart
 
 	err = s.DB.Repository.Save(&p)
 
-	*player = models.NewDTO(p)
+	*player = models.NewPlayerDTO(p)
 
 	return err
 }

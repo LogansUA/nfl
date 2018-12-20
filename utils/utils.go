@@ -5,6 +5,11 @@ import (
 	"reflect"
 )
 
+type DataResponse struct {
+	Data interface{} `json:"data"`
+	Err  error       `json:"error,omitempty"`
+}
+
 func RandToken() string {
 	return uuid.NewV4().String()
 }

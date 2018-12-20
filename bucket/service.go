@@ -12,12 +12,19 @@ import (
 	"path"
 )
 
+type UploadFileToBucketRequest struct {
+	ID         int
+	File       multipart.File
+	FileHeader multipart.FileHeader
+}
+
 type UploadFileToBucketResponse struct {
 	Url string `json:"url"`
 }
 
 type Service interface {
 	UploadPlayerAvatar(ctx context.Context, id uint, file multipart.File, fileHeader *multipart.FileHeader) (string, error)
+	UploadTeamLogo(ctx context.Context, id uint, file multipart.File, fileHeader *multipart.FileHeader) (string, error)
 }
 
 type service struct {
@@ -50,6 +57,19 @@ func New() (Service, error) {
 func (s *service) UploadPlayerAvatar(ctx context.Context, id uint, file multipart.File, fileHeader *multipart.FileHeader) (string, error) {
 	name := fmt.Sprintf("%s%s", utils.RandToken(), path.Ext(fileHeader.Filename))
 	filePath := fmt.Sprintf("%s/%d/%s/%s", "players", id, "avatars", name)
+
+	_, err := uploadFileToBucket(ctx, file, fileHeader, filePath)
+
+	if err != nil {
+		return "", err
+	}
+
+	return name, err
+}
+
+func (s *service) UploadTeamLogo(ctx context.Context, id uint, file multipart.File, fileHeader *multipart.FileHeader) (string, error) {
+	name := fmt.Sprintf("%s%s", utils.RandToken(), path.Ext(fileHeader.Filename))
+	filePath := fmt.Sprintf("%s/%d/%s/%s", "teams", id, "logos", name)
 
 	_, err := uploadFileToBucket(ctx, file, fileHeader, filePath)
 

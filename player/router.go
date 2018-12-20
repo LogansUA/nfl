@@ -7,18 +7,16 @@ import (
 	"github.com/go-kit/kit/log"
 	httptransport "github.com/go-kit/kit/transport/http"
 	"github.com/gorilla/mux"
+	"github.com/logansua/nfl_app/bucket"
+	apperrors "github.com/logansua/nfl_app/errors"
 	"github.com/logansua/nfl_app/pagination"
+	"github.com/logansua/nfl_app/router"
 	"net/http"
 	"strconv"
 )
 
-// MakeHTTPHandler mounts all of the service endpoints into an http.Handler.
-func MakeHTTPHandler(s Service, logger log.Logger) http.Handler {
-	router := mux.NewRouter()
-
-	endpoints := MakeServerEndpoints(s)
-
-	options := []httptransport.ServerOption{
+func GetServiceOptions(logger log.Logger) []httptransport.ServerOption {
+	return []httptransport.ServerOption{
 		httptransport.ServerErrorLogger(logger),
 		httptransport.ServerErrorEncoder(encodeError),
 		httptransport.ServerAfter(func(ctx context.Context, writer http.ResponseWriter) context.Context {
@@ -26,71 +24,79 @@ func MakeHTTPHandler(s Service, logger log.Logger) http.Handler {
 
 			return ctx
 		}),
+		httptransport.ServerFinalizer(func(ctx context.Context, code int, r *http.Request) {
+			logger.Log("METHOD", r.Method, "PATH", r.URL.Path, "CODE", code)
+		}),
 	}
-
-	router.
-		Methods(http.MethodPost).
-		Path("/players").
-		Handler(httptransport.NewServer(
-			endpoints.CreatePlayerEndpoint,
-			decodeCreatePlayerRequest,
-			encodeResponse,
-			options...,
-		))
-	router.
-		Methods(http.MethodGet).
-		Path("/players").
-		Handler(httptransport.NewServer(
-			endpoints.GetPlayersEndpoint,
-			decodeGetPlayersRequest,
-			encodeResponse,
-			options...,
-		))
-	router.
-		Methods(http.MethodGet).
-		Path("/players/{id}").
-		Handler(httptransport.NewServer(
-			endpoints.GetPlayerEndpoint,
-			decodeGetPlayerRequest,
-			encodeResponse,
-			options...,
-		))
-	router.
-		Methods(http.MethodDelete).
-		Path("/players/{id}").
-		Handler(httptransport.NewServer(
-			endpoints.DeletePlayerEndpoint,
-			decodeDeletePlayerRequest,
-			encodeDeletePlayerResponse,
-			options...,
-		))
-	router.
-		Methods(http.MethodPut).
-		Path("/players/{id}/avatar").
-		Handler(httptransport.NewServer(
-			endpoints.MakeUploadPlayerAvatarEndpoint,
-			decodeUploadPlayerAvatarRequest,
-			encodeResponse,
-			options...,
-		))
-
-	makeSwaggerHandler(router)
-
-	return router
 }
 
-func makeSwaggerHandler(r *mux.Router) {
-	const docsPath = "/docs"
+func CreateRoutes(s Service, logger log.Logger) []router.Route {
+	endpoints := MakeServerEndpoints(s)
 
-	r.StrictSlash(false).Path(docsPath).Handler(http.RedirectHandler(docsPath+"/", http.StatusMovedPermanently))
+	options := GetServiceOptions(logger)
 
-	r.StrictSlash(true).PathPrefix(docsPath + "/").Handler(
-		http.StripPrefix(docsPath+"/", http.FileServer(http.Dir("./swagger"))),
-	)
-
-	r.Path("/api-docs").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(w, r, "./swagger.yaml")
-	})
+	return []router.Route{
+		{
+			Name:        "Create good",
+			Method:      http.MethodPost,
+			Path:        "/players",
+			StrictSlash: false,
+			Handler: httptransport.NewServer(
+				endpoints.CreatePlayerEndpoint,
+				decodeCreatePlayerRequest,
+				encodeResponse,
+				options...,
+			),
+		},
+		{
+			Name:        "Get goods",
+			Method:      http.MethodGet,
+			Path:        "/players",
+			StrictSlash: true,
+			Handler: httptransport.NewServer(
+				endpoints.GetPlayersEndpoint,
+				decodeGetPlayersRequest,
+				encodeResponse,
+				options...,
+			),
+		},
+		{
+			Name:        "Update good",
+			Method:      http.MethodGet,
+			Path:        "/players/{id}",
+			StrictSlash: true,
+			Handler: httptransport.NewServer(
+				endpoints.GetPlayerEndpoint,
+				decodeGetPlayerRequest,
+				encodeResponse,
+				options...,
+			),
+		},
+		{
+			Name:        "Delete good",
+			Method:      http.MethodDelete,
+			Path:        "/players/{id}",
+			StrictSlash: true,
+			Handler: httptransport.NewServer(
+				endpoints.DeletePlayerEndpoint,
+				decodeDeletePlayerRequest,
+				encodeDeletePlayerResponse,
+				options...,
+			),
+		},
+		{
+			Name:        "Upload good photo",
+			Method:      http.MethodPut,
+			Path:        "/players/{id}/avatar",
+			StrictSlash: false,
+			Handler: httptransport.NewServer(
+				endpoints.MakeUploadPlayerAvatarEndpoint,
+				decodeUploadPlayerAvatarRequest,
+				encodeResponse,
+				options...,
+			),
+		},
+	}
 }
 
 func decodeCreatePlayerRequest(_ context.Context, r *http.Request) (request interface{}, err error) {
@@ -162,7 +168,7 @@ func decodeUploadPlayerAvatarRequest(_ context.Context, r *http.Request) (reques
 		return nil, err
 	}
 
-	var req uploadPlayerAvatarRequest
+	var req bucket.UploadFileToBucketRequest
 
 	params := mux.Vars(r)
 
@@ -172,9 +178,9 @@ func decodeUploadPlayerAvatarRequest(_ context.Context, r *http.Request) (reques
 		return nil, err
 	}
 
-	req.id = id
-	req.file = file
-	req.fileHeader = *fileHeader
+	req.ID = id
+	req.File = file
+	req.FileHeader = *fileHeader
 
 	return req, nil
 }
@@ -223,9 +229,9 @@ func encodeError(_ context.Context, err error, w http.ResponseWriter) {
 
 func codeFrom(err error) int {
 	switch err {
-	case ErrNotFound:
+	case apperrors.ErrNotFound:
 		return http.StatusNotFound
-	case ErrAlreadyExists, ErrInconsistentIDs:
+	case apperrors.ErrAlreadyExists, apperrors.ErrInconsistentIDs:
 		return http.StatusBadRequest
 	default:
 		return http.StatusInternalServerError

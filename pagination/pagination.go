@@ -28,7 +28,7 @@ func (p *Pagination) create(page, limit int) {
 
 	p.Limit = l
 	p.Page = page
-	p.Offset = (page-1)*l + 1
+	p.Offset = (page - 1) * l
 
 	return
 }

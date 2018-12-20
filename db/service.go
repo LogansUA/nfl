@@ -10,6 +10,7 @@ import (
 type DB struct {
 	Repository       Repository
 	PlayerRepository PlayerRepository
+	TeamRepository   TeamRepository
 	DB               *gorm.DB
 }
 
@@ -24,6 +25,7 @@ func New() (*DB, error) {
 	return &DB{
 		Repository:       &BaseRepository{DB: db},
 		PlayerRepository: &PlayerTable{DB: db},
+		TeamRepository:   &TeamTable{DB: db},
 		DB:               db,
 	}, nil
 }

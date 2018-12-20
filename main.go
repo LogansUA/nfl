@@ -8,6 +8,8 @@ import (
 	"github.com/logansua/nfl_app/bucket"
 	"github.com/logansua/nfl_app/db"
 	"github.com/logansua/nfl_app/player"
+	"github.com/logansua/nfl_app/router"
+	"github.com/logansua/nfl_app/team"
 	"net/http"
 	"os"
 	"os/signal"
@@ -43,10 +45,16 @@ func main() {
 	}
 
 	playerService := player.New(dbService, bucketService)
+	playerRoutes := player.CreateRoutes(playerService, logger)
+
+	teamService := team.New(dbService, bucketService)
+	teamRoutes := team.CreateRoutes(teamService, logger)
+
+	routes := append(playerRoutes, teamRoutes...)
 
 	var handler http.Handler
 	{
-		handler = player.MakeHTTPHandler(playerService, log.With(logger, "component", "HTTP"))
+		handler = router.New(routes)
 	}
 
 	errs := make(chan error)

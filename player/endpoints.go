@@ -3,8 +3,10 @@ package player
 import (
 	"context"
 	"github.com/go-kit/kit/endpoint"
-	"github.com/logansua/nfl_app/models"
+	"github.com/logansua/nfl_app/bucket"
+	"github.com/logansua/nfl_app/models/dto"
 	"github.com/logansua/nfl_app/pagination"
+	"github.com/logansua/nfl_app/utils"
 	"mime/multipart"
 )
 
@@ -26,7 +28,7 @@ func MakeServerEndpoints(s Service) Endpoints {
 	}
 }
 
-func (e Endpoints) CreatePlayer(ctx context.Context, p models.PlayerDTO) error {
+func (e Endpoints) CreatePlayer(ctx context.Context, p dto.PlayerDTO) error {
 	request := createPlayerRequest{Player: p}
 	response, err := e.CreatePlayerEndpoint(ctx, request)
 
@@ -34,7 +36,7 @@ func (e Endpoints) CreatePlayer(ctx context.Context, p models.PlayerDTO) error {
 		return err
 	}
 
-	resp := response.(dataResponse)
+	resp := response.(utils.DataResponse)
 
 	return resp.Err
 }
@@ -46,7 +48,7 @@ func (e Endpoints) GetPlayers(ctx context.Context, paging pagination.Pagination)
 		return err
 	}
 
-	resp := response.(dataResponse)
+	resp := response.(utils.DataResponse)
 
 	return resp.Err
 }
@@ -58,7 +60,7 @@ func (e Endpoints) GetPlayer(ctx context.Context, id int) error {
 		return err
 	}
 
-	resp := response.(dataResponse)
+	resp := response.(utils.DataResponse)
 
 	return resp.Err
 }
@@ -70,19 +72,19 @@ func (e Endpoints) DeletePlayer(ctx context.Context, id int) error {
 		return err
 	}
 
-	resp := response.(dataResponse)
+	resp := response.(utils.DataResponse)
 
 	return resp.Err
 }
 func (e Endpoints) UploadPlayerAvatar(ctx context.Context, id int, file multipart.File, fileHeader multipart.FileHeader) error {
-	request := uploadPlayerAvatarRequest{id: id, file: file, fileHeader: fileHeader}
+	request := bucket.UploadFileToBucketRequest{ID: id, File: file, FileHeader: fileHeader}
 	response, err := e.MakeUploadPlayerAvatarEndpoint(ctx, request)
 
 	if err != nil {
 		return err
 	}
 
-	resp := response.(dataResponse)
+	resp := response.(utils.DataResponse)
 
 	return resp.Err
 }
@@ -99,14 +101,14 @@ func MakeCreatePlayerEndpoint(service Service) endpoint.Endpoint {
 			return nil, err
 		}
 
-		return dataResponse{Data: p}, nil
+		return utils.DataResponse{Data: p}, nil
 	}
 }
 func MakeGetPlayersEndpoint(service Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(getPlayersRequest)
 
-		var players []models.PlayerDTO
+		var players []dto.PlayerDTO
 
 		err = service.GetPlayers(ctx, req.Paging, &players)
 
@@ -114,14 +116,14 @@ func MakeGetPlayersEndpoint(service Service) endpoint.Endpoint {
 			return nil, err
 		}
 
-		return dataResponse{Data: players}, nil
+		return utils.DataResponse{Data: players}, nil
 	}
 }
 func MakeGetPlayerEndpoint(service Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(playerIdRequest)
 
-		var player models.PlayerDTO
+		var player dto.PlayerDTO
 
 		err = service.GetPlayer(ctx, req.id, &player)
 
@@ -129,7 +131,7 @@ func MakeGetPlayerEndpoint(service Service) endpoint.Endpoint {
 			return nil, err
 		}
 
-		return dataResponse{Data: player}, nil
+		return utils.DataResponse{Data: player}, nil
 	}
 }
 func MakeDeletePlayerEndpoint(service Service) endpoint.Endpoint {
@@ -147,21 +149,21 @@ func MakeDeletePlayerEndpoint(service Service) endpoint.Endpoint {
 }
 func MakeUploadPlayerAvatarEndpoint(service Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
-		req := request.(uploadPlayerAvatarRequest)
+		req := request.(bucket.UploadFileToBucketRequest)
 
-		var player models.PlayerDTO
-		err = service.UploadPlayerAvatar(ctx, req.id, req.file, &req.fileHeader, &player)
+		var player dto.PlayerDTO
+		err = service.UploadPlayerAvatar(ctx, req.ID, req.File, &req.FileHeader, &player)
 
 		if err != nil {
 			return nil, err
 		}
 
-		return dataResponse{Data: player}, nil
+		return utils.DataResponse{Data: player}, nil
 	}
 }
 
 type createPlayerRequest struct {
-	Player models.PlayerDTO
+	Player dto.PlayerDTO
 }
 
 type getPlayersRequest struct {
@@ -170,15 +172,4 @@ type getPlayersRequest struct {
 
 type playerIdRequest struct {
 	id int
-}
-
-type uploadPlayerAvatarRequest struct {
-	id         int
-	file       multipart.File
-	fileHeader multipart.FileHeader
-}
-
-type dataResponse struct {
-	Data interface{} `json:"data"`
-	Err  error       `json:"error,omitempty"`
 }
