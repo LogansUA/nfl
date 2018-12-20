@@ -5,7 +5,6 @@ import (
 	"github.com/go-kit/kit/endpoint"
 	"github.com/logansua/nfl_app/models"
 	"github.com/logansua/nfl_app/pagination"
-	"github.com/logansua/nfl_app/utils"
 	"mime/multipart"
 )
 
@@ -27,7 +26,7 @@ func MakeServerEndpoints(s Service) Endpoints {
 	}
 }
 
-func (e Endpoints) CreatePlayer(ctx context.Context, p models.Player) error {
+func (e Endpoints) CreatePlayer(ctx context.Context, p models.PlayerDTO) error {
 	request := createPlayerRequest{Player: p}
 	response, err := e.CreatePlayerEndpoint(ctx, request)
 
@@ -92,20 +91,22 @@ func MakeCreatePlayerEndpoint(service Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(createPlayerRequest)
 
-		p, err := service.CreatePlayer(ctx, req.Player)
+		p := req.Player
+
+		err = service.CreatePlayer(ctx, &p)
 
 		if err != nil {
 			return nil, err
 		}
 
-		return dataResponse{Data: models.NewDTO(*p)}, nil
+		return dataResponse{Data: p}, nil
 	}
 }
 func MakeGetPlayersEndpoint(service Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(getPlayersRequest)
 
-		var players []models.Player
+		var players []models.PlayerDTO
 
 		err = service.GetPlayers(ctx, req.Paging, &players)
 
@@ -113,18 +114,14 @@ func MakeGetPlayersEndpoint(service Service) endpoint.Endpoint {
 			return nil, err
 		}
 
-		dto := utils.Map(players, func(val interface{}) interface{} {
-			return models.NewDTO(val.(models.Player))
-		})
-
-		return dataResponse{Data: dto}, nil
+		return dataResponse{Data: players}, nil
 	}
 }
 func MakeGetPlayerEndpoint(service Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(playerIdRequest)
 
-		var player models.Player
+		var player models.PlayerDTO
 
 		err = service.GetPlayer(ctx, req.id, &player)
 
@@ -132,16 +129,14 @@ func MakeGetPlayerEndpoint(service Service) endpoint.Endpoint {
 			return nil, err
 		}
 
-		return dataResponse{Data: models.NewDTO(player)}, nil
+		return dataResponse{Data: player}, nil
 	}
 }
 func MakeDeletePlayerEndpoint(service Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(playerIdRequest)
 
-		var player models.Player
-
-		err = service.DeletePlayer(ctx, req.id, &player)
+		err = service.DeletePlayer(ctx, req.id)
 
 		if err != nil {
 			return nil, err
@@ -154,19 +149,19 @@ func MakeUploadPlayerAvatarEndpoint(service Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(uploadPlayerAvatarRequest)
 
-		var player models.Player
+		var player models.PlayerDTO
 		err = service.UploadPlayerAvatar(ctx, req.id, req.file, &req.fileHeader, &player)
 
 		if err != nil {
 			return nil, err
 		}
 
-		return dataResponse{Data: models.NewDTO(player)}, nil
+		return dataResponse{Data: player}, nil
 	}
 }
 
 type createPlayerRequest struct {
-	Player models.Player
+	Player models.PlayerDTO
 }
 
 type getPlayersRequest struct {

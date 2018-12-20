@@ -13,15 +13,15 @@ import (
 // Service is a simple CRUD interface for players.
 type Service interface {
 	// Create player
-	CreatePlayer(ctx context.Context, p models.Player) (*models.Player, error)
+	CreatePlayer(ctx context.Context, player *models.PlayerDTO) error
 	// Get list of players
-	GetPlayers(ctx context.Context, paging pagination.Pagination, players *[]models.Player) error
+	GetPlayers(ctx context.Context, paging pagination.Pagination, players *[]models.PlayerDTO) error
 	// Get single player by ID
-	GetPlayer(ctx context.Context, id int, player *models.Player) error
+	GetPlayer(ctx context.Context, id int, player *models.PlayerDTO) error
 	// Delete player by ID
-	DeletePlayer(ctx context.Context, id int, player *models.Player) error
+	DeletePlayer(ctx context.Context, id int) error
 	// Upload player avatar by ID
-	UploadPlayerAvatar(ctx context.Context, id int, file multipart.File, fileHeader *multipart.FileHeader, p *models.Player) error
+	UploadPlayerAvatar(ctx context.Context, id int, file multipart.File, fileHeader *multipart.FileHeader, p *models.PlayerDTO) error
 }
 
 type service struct {
@@ -39,51 +39,60 @@ var (
 	ErrNotFound        = errors.New("not found")
 )
 
-func (s *service) CreatePlayer(ctx context.Context, p models.Player) (*models.Player, error) {
+func (s *service) CreatePlayer(ctx context.Context, player *models.PlayerDTO) error {
+	p := models.NewModel(player)
 	err := s.DB.Repository.Create(&p)
 
-	if err != nil {
-		return nil, err
-	}
+	(*player).ID = p.ID
+	(*player).CreatedAt = p.CreatedAt
+	(*player).UpdatedAt = p.UpdatedAt
 
-	return &p, nil
+	return err
 }
 
-func (s *service) GetPlayers(ctx context.Context, paging pagination.Pagination, players *[]models.Player) error {
+func (s *service) GetPlayers(ctx context.Context, paging pagination.Pagination, players *[]models.PlayerDTO) error {
 	var p []models.Player
 
 	err := s.DB.
 		PlayerRepository.
 		FindAllAndPaginate(paging, &p)
 
-	*players = make([]models.Player, len(p))
+	*players = make([]models.PlayerDTO, len(p))
 
 	for key, value := range p {
-		(*players)[key] = value
+		(*players)[key] = models.NewDTO(value)
 	}
 
 	return err
 }
 
-func (s *service) GetPlayer(ctx context.Context, id int, player *models.Player) error {
-	err := s.DB.Repository.FindById(&player, id)
+func (s *service) GetPlayer(ctx context.Context, id int, player *models.PlayerDTO) error {
+	var p models.Player
+
+	err := s.DB.Repository.FindById(&p, id)
+
+	*player = models.NewDTO(p)
 
 	return err
 }
 
-func (s *service) DeletePlayer(ctx context.Context, id int, player *models.Player) error {
-	err := s.DB.Repository.FindById(&player, id)
+func (s *service) DeletePlayer(ctx context.Context, id int) error {
+	var p models.Player
+
+	err := s.DB.Repository.FindById(&p, id)
 
 	if err != nil {
 		return err
 	}
 
-	err = s.DB.Repository.Delete(&player, id)
+	err = s.DB.Repository.Delete(&p, id)
 
 	return err
 }
 
-func (s *service) UploadPlayerAvatar(ctx context.Context, id int, file multipart.File, fileHeader *multipart.FileHeader, p *models.Player) error {
+func (s *service) UploadPlayerAvatar(ctx context.Context, id int, file multipart.File, fileHeader *multipart.FileHeader, player *models.PlayerDTO) error {
+	var p models.Player
+
 	if err := s.DB.Repository.FindById(&p, id); err != nil {
 		return errors.New("player not found")
 	}
@@ -97,6 +106,8 @@ func (s *service) UploadPlayerAvatar(ctx context.Context, id int, file multipart
 	p.Avatar = name
 
 	err = s.DB.Repository.Save(&p)
+
+	*player = models.NewDTO(p)
 
 	return err
 }

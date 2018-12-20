@@ -21,6 +21,11 @@ func MakeHTTPHandler(s Service, logger log.Logger) http.Handler {
 	options := []httptransport.ServerOption{
 		httptransport.ServerErrorLogger(logger),
 		httptransport.ServerErrorEncoder(encodeError),
+		httptransport.ServerAfter(func(ctx context.Context, writer http.ResponseWriter) context.Context {
+			writer.Header().Set("Content-type", "application/json")
+
+			return ctx
+		}),
 	}
 
 	router.
@@ -187,8 +192,6 @@ func encodeResponse(ctx context.Context, w http.ResponseWriter, response interfa
 		return nil
 	}
 
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-
 	return json.NewEncoder(w).Encode(response)
 }
 
@@ -201,7 +204,6 @@ func encodeDeletePlayerResponse(ctx context.Context, w http.ResponseWriter, resp
 		return nil
 	}
 
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(http.StatusNoContent)
 
 	return json.NewEncoder(w).Encode(response)
@@ -212,7 +214,6 @@ func encodeError(_ context.Context, err error, w http.ResponseWriter) {
 		panic("encodeError with nil error")
 	}
 
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(codeFrom(err))
 
 	json.NewEncoder(w).Encode(map[string]interface{}{

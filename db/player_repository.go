@@ -20,5 +20,6 @@ func (pt *PlayerTable) FindAllAndPaginate(paging pagination.Pagination, out *[]m
 		Offset(paging.Offset).
 		Limit(paging.Limit).
 		Find(out).
+		Order("id ASC").
 		Error
 }
