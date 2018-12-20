@@ -11,6 +11,14 @@ info:
     description: NFL application
     title: NFL application
     version: 0.0.0
+parameters:
+    playerIdParam:
+        in: path
+        name: id
+        required: true
+        type: integer
+        minimum: 1
+        description: The user ID.
 paths:
     /players:
         get:
@@ -39,13 +47,11 @@ paths:
                                     avatar: "f9fa4c7f-74dd-4a8d-8613-c5017fe047c9.jpg"
                                     created_at: "2018-12-14T11:44:32.779195Z"
                                     updated_at: "2018-12-17T12:59:44.153986Z"
-                                    deleted_at: null
                                 -   id: 2
                                     name: "EXAMPLE_PLAYER_2"
                                     avatar: "c5017fe047c9-74dd-4a8d-8613-f9fa4c7f47c9.jpg"
                                     created_at: "2018-12-14T11:44:32.779195Z"
                                     updated_at: "2018-12-17T12:59:44.153986Z"
-                                    deleted_at: null
                 default:
                     description: error
                     schema:
@@ -75,18 +81,13 @@ paths:
                                 avatar: ""
                                 created_at: "2018-12-14T11:44:32.779195Z"
                                 updated_at: "2018-12-17T12:59:44.153986Z"
-                                deleted_at: "null"
                 default:
                     description: error
                     schema:
                         $ref: "#/definitions/error"
     /players/{id}:
         parameters:
-            -   type: integer
-                format: int64
-                name: id
-                in: path
-                required: true
+            -   $ref: "#/parameters/playerIdParam"
         get:
             tags:
                 - players
@@ -105,7 +106,6 @@ paths:
                                 avatar: ""
                                 created_at: "2018-12-14T11:44:32.779195Z"
                                 updated_at: "2018-12-17T12:59:44.153986Z"
-                                deleted_at: "null"
                 default:
                     description: error
                     schema:
@@ -117,6 +117,40 @@ paths:
             responses:
                 204:
                     description: Deleted
+                default:
+                    description: error
+                    schema:
+                        $ref: "#/definitions/error"
+    /players/{id}/avatar:
+        parameters:
+            -   $ref: "#/parameters/playerIdParam"
+        put:
+            tags:
+                - players
+            summary: "Upload player avatar"
+            description: "Upload avatar for player"
+            operationId: uploadAvatar
+            consumes:
+                - multipart/form-data
+            parameters:
+                -   name: image
+                    description: "Image file"
+                    in: formData
+                    type: file
+            responses:
+                200:
+                    description: "Player with uploaded avatar name"
+                    schema:
+                        properties:
+                            data:
+                                $ref: "#/definitions/player"
+                        example:
+                            data:
+                                id: 1
+                                name: "EXAMPLE_PLAYER_1"
+                                avatar: "f9fa4c7f-74dd-4a8d-8613-c5017fe047c9.jpg"
+                                created_at: "2018-12-14T11:44:32.779195Z"
+                                updated_at: "2018-12-17T12:59:44.153986Z"
                 default:
                     description: error
                     schema:
@@ -139,8 +173,6 @@ definitions:
             created_at:
                 type: string
             updated_at:
-                type: string
-            deleted_at:
                 type: string
     array_of_players:
         type: object
