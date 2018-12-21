@@ -17,6 +17,7 @@ func NewPlayerDTO(data Player) dto.PlayerDTO {
 		ID:        data.ID,
 		Name:      data.Name,
 		Avatar:    data.Avatar,
+		TeamID:    data.TeamID,
 		CreatedAt: data.CreatedAt,
 		UpdatedAt: data.UpdatedAt,
 	}
@@ -26,6 +27,7 @@ func NewPlayerModel(data *dto.PlayerDTO) Player {
 	return Player{
 		Name:   data.Name,
 		Avatar: data.Avatar,
+		TeamID: data.TeamID,
 	}
 }
 

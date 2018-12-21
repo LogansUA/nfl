@@ -1,14 +1,14 @@
 package models
 
-import (
-	"github.com/jinzhu/gorm"
-)
+import "time"
 
 type Player struct {
-	gorm.Model
+	ID        uint `gorm:"primary_key"`
+	CreatedAt time.Time
+	UpdatedAt time.Time
 
 	Name   string
 	Avatar string
 	TeamID int
-	Team   Team `gorm:"foreignkey:TeamID"`
+	Team   Team `gorm:"foreignkey:TeamID" sql:"type:int REFERENCES teams(id)"`
 }

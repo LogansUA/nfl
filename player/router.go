@@ -220,6 +220,7 @@ func encodeError(_ context.Context, err error, w http.ResponseWriter) {
 		panic("encodeError with nil error")
 	}
 
+	w.Header().Set("Content-type", "application/json")
 	w.WriteHeader(codeFrom(err))
 
 	json.NewEncoder(w).Encode(map[string]interface{}{

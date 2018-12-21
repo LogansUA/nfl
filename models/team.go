@@ -1,13 +1,15 @@
 package models
 
 import (
-	"github.com/jinzhu/gorm"
+	"time"
 )
 
 type Team struct {
-	gorm.Model
+	ID        uint `gorm:"primary_key"`
+	CreatedAt time.Time
+	UpdatedAt time.Time
 
 	Name    string
 	Logo    string
-	Players []Player
+	Players []Player `gorm:"foreignkey:TeamID"`
 }

@@ -22,6 +22,10 @@ func New() (*DB, error) {
 		return nil, err
 	}
 
+	//db.DropTable(&models.Player{}, &models.Team{})
+	//db.AutoMigrate(&models.Player{}, &models.Team{})
+	//db.Model(&models.Player{}).AddForeignKey("team_id", "teams(id)", "CASCADE", "NO ACTION")
+
 	return &DB{
 		Repository:       &BaseRepository{DB: db},
 		PlayerRepository: &PlayerTable{DB: db},

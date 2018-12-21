@@ -44,11 +44,11 @@ func main() {
 		panic(err)
 	}
 
-	playerService := player.New(dbService, bucketService)
-	playerRoutes := player.CreateRoutes(playerService, logger)
-
 	teamService := team.New(dbService, bucketService)
 	teamRoutes := team.CreateRoutes(teamService, logger)
+
+	playerService := player.New(dbService, bucketService, teamService)
+	playerRoutes := player.CreateRoutes(playerService, logger)
 
 	routes := append(playerRoutes, teamRoutes...)
 

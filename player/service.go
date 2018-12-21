@@ -5,9 +5,11 @@ import (
 	"errors"
 	"github.com/logansua/nfl_app/bucket"
 	"github.com/logansua/nfl_app/db"
+	apperrors "github.com/logansua/nfl_app/errors"
 	"github.com/logansua/nfl_app/models"
 	"github.com/logansua/nfl_app/models/dto"
 	"github.com/logansua/nfl_app/pagination"
+	"github.com/logansua/nfl_app/team"
 	"mime/multipart"
 )
 
@@ -28,15 +30,32 @@ type Service interface {
 type service struct {
 	DB            *db.DB
 	BucketService bucket.Service
+	TeamService   team.Service
 }
 
-func New(dbService *db.DB, bucketService bucket.Service) Service {
-	return &service{DB: dbService, BucketService: bucketService}
+func New(dbService *db.DB, bucketService bucket.Service, teamService team.Service) Service {
+	return &service{
+		DB:            dbService,
+		BucketService: bucketService,
+		TeamService:   teamService,
+	}
 }
 
 func (s *service) CreatePlayer(ctx context.Context, player *dto.PlayerDTO) error {
 	p := models.NewPlayerModel(player)
-	err := s.DB.Repository.Create(&p)
+
+	var teamDTO dto.TeamDTO
+	err := s.TeamService.GetTeam(ctx, p.TeamID, &teamDTO)
+
+	if err != nil {
+		return apperrors.ErrNotFound
+	}
+
+	err = s.DB.Repository.Create(&p)
+
+	if err != nil {
+		return err
+	}
 
 	(*player).ID = p.ID
 	(*player).CreatedAt = p.CreatedAt
